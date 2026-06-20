@@ -1,0 +1,168 @@
+@import "tailwindcss";
+
+/*
+  BARBELL KITCHEN — brand design tokens
+  Primary: deep maroon / burgundy (from the logo)
+  Accent:  brushed silver / ceramic metallic
+  Support: white, off-white, light gray, charcoal, deep graphite
+*/
+@theme inline {
+  /* Brand — maroon */
+  --color-maroon: #7a1e2b;
+  --color-maroon-bright: #97303d;
+  --color-maroon-dark: #5a141d;
+  --color-maroon-deep: #3a0d14;
+
+  /* Brand — silver / metallic */
+  --color-silver: #c7cacc;
+  --color-silver-light: #e9ebec;
+  --color-silver-dark: #9aa0a3;
+
+  /* Neutrals */
+  --color-cream: #faf8f5;
+  --color-offwhite: #f4f2ee;
+  --color-graphite: #17191b;
+  --color-charcoal: #0d0e0f;
+  --color-ink: #060708;
+
+  /* Semantic */
+  --color-background: var(--color-cream);
+  --color-foreground: var(--color-graphite);
+
+  /* Type */
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --font-display: var(--font-oswald);
+
+  /* Easing */
+  --ease-premium: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+:root {
+  --background: var(--color-cream);
+  --foreground: var(--color-graphite);
+
+  /* Promo bar (h-9 = 2.25rem) + navbar (h-16 = 4rem). Used so the hero can
+     fill the first viewport while accounting for the sticky top chrome. */
+  --top-chrome-height: 6.25rem;
+  /* Sticky navbar height alone (the promo bar scrolls away). Used to size the
+     internally-scrollable desktop filter sidebar. */
+  --navbar-height: 4rem;
+}
+
+* {
+  border-color: color-mix(in oklab, var(--color-graphite) 12%, transparent);
+}
+
+html {
+  /* Stop decorative panels/shapes from creating a horizontal scrollbar
+     without breaking position: sticky (unlike overflow-x: hidden). */
+  overflow-x: clip;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Editorial display headings */
+.font-display {
+  font-family: var(--font-display), "Arial Narrow", sans-serif;
+  letter-spacing: 0.005em;
+}
+
+/* Visible, branded focus ring for keyboard users */
+:focus-visible {
+  outline: 2px solid var(--color-maroon);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+/* Brushed-metal silver surface (logo-inspired) */
+.brushed-metal {
+  background-color: var(--color-silver);
+  background-image:
+    linear-gradient(
+      125deg,
+      rgba(255, 255, 255, 0.55) 0%,
+      rgba(255, 255, 255, 0) 22%,
+      rgba(0, 0, 0, 0.06) 48%,
+      rgba(255, 255, 255, 0) 74%,
+      rgba(255, 255, 255, 0.5) 100%
+    ),
+    repeating-linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0.18) 0px,
+      rgba(255, 255, 255, 0.18) 1px,
+      rgba(0, 0, 0, 0.035) 2px,
+      rgba(0, 0, 0, 0.035) 3px
+    );
+}
+
+/* Faint metallic divider line */
+.metal-divider {
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in oklab, var(--color-silver-dark) 70%, transparent),
+    transparent
+  );
+}
+
+/* Dark cinematic gym surface */
+.gym-surface {
+  background:
+    radial-gradient(
+      120% 120% at 15% 0%,
+      color-mix(in oklab, var(--color-maroon) 30%, transparent) 0%,
+      transparent 45%
+    ),
+    radial-gradient(80% 80% at 90% 100%, rgba(255, 255, 255, 0.05) 0%, transparent 55%),
+    linear-gradient(180deg, var(--color-charcoal), var(--color-ink));
+}
+
+/* Section vertical rhythm helper */
+.section-pad {
+  padding-block: clamp(3.5rem, 8vw, 8rem);
+}
+
+/* Premium skeleton: off-white base with a subtle brushed-silver sweep.
+   The shimmer animation is disabled by the reduced-motion rule below. */
+.skeleton {
+  background-color: var(--color-offwhite);
+  background-image: linear-gradient(
+    100deg,
+    transparent 20%,
+    color-mix(in oklab, var(--color-silver-light) 60%, transparent) 45%,
+    color-mix(in oklab, var(--color-silver-light) 75%, transparent) 50%,
+    color-mix(in oklab, var(--color-silver-light) 60%, transparent) 55%,
+    transparent 80%
+  );
+  background-size: 220% 100%;
+  background-repeat: no-repeat;
+  animation: skeleton-sweep 1.4s ease-in-out infinite;
+}
+
+@keyframes skeleton-sweep {
+  from {
+    background-position: 180% 0;
+  }
+  to {
+    background-position: -80% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}

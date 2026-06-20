@@ -1,0 +1,139 @@
+# Barbell Kitchen — Visual Identity
+
+The single reference for keeping every page (landing, `/products`, and future routes)
+visually consistent. When building new UI, follow this document and reuse the existing
+tokens/components rather than inventing new styles.
+
+---
+
+## 1. Brand colors
+
+All colors are defined as Tailwind v4 theme tokens in **`src/app/globals.css`** (`@theme`
+block). Use the token utilities (`bg-maroon`, `text-cream`, …) — never hard-code hex.
+
+| Role | Token | Hex | Usage |
+|------|-------|-----|-------|
+| Primary | `--color-maroon` | `#7a1e2b` | CTAs, active states, accents, headings emphasis |
+| Primary hover | `--color-maroon-bright` | `#97303d` | Hover on primary buttons |
+| Primary deep | `--color-maroon-dark` / `--color-maroon-deep` | `#5a141d` / `#3a0d14` | Gradients, dark maroon panels |
+| Accent | `--color-silver` / `-light` / `-dark` | `#c7cacc` / `#e9ebec` / `#9aa0a3` | Brushed-metal surfaces, dividers, secondary text on dark |
+| Surface | `--color-cream` | `#faf8f5` | Page background |
+| Surface 2 | `--color-offwhite` | `#f4f2ee` | Insets (macro boxes, subtle panels) |
+| Dark | `--color-graphite` / `--color-charcoal` / `--color-ink` | `#17191b` / `#0d0e0f` / `#060708` | Text, dark panels, cinematic sections |
+
+**Green rule:** green appears **only** inside real food photography (vegetables). It is
+never a brand/UI color — no green buttons, chips, links, or status colors.
+
+Helper surfaces (also in `globals.css`): `.brushed-metal`, `.metal-divider`,
+`.gym-surface` (dark cinematic), `.section-pad`, `.font-display`.
+
+---
+
+## 2. Logo usage
+
+Component: **`src/components/landing/Logo.tsx`** → `<Logo variant="red" | "white" />`.
+
+- **Red** (`/images/logo-red.svg`) on **light / brushed-silver** surfaces (navbar over cream).
+- **White** (`/images/logo-white.png`) on **dark / maroon** surfaces (footer, BrandIntro, mobile drawer).
+- Both assets are near-square (~1.4:1). In tight bars size by **height** (`h-9 sm:h-10`);
+  where there's room size by **width** (`w-32`–`w-52`).
+- Always `object-contain`; never stretch. Alt text: `Barbell Kitchen logo`.
+- `images.dangerouslyAllowSVG` is enabled because the red logo is an SVG served via `next/image` — keep it.
+
+---
+
+## 3. Typography
+
+- **Display** (`font-display` → Oswald): headings, prices, stat numbers, chips that need
+  punch. Athletic, condensed, uppercase-friendly. Tracking tight on big headings.
+- **Body** (default sans → Geist): paragraphs, descriptions, labels.
+- Scale: hero headlines `clamp`/responsive (e.g. `text-5xl … 2xl:text-7xl`); section titles
+  `text-3xl sm:text-4xl`; card titles `text-lg/xl`; meta/labels `text-xs uppercase tracking-wide`.
+- Eyebrows: `text-xs font-semibold uppercase tracking-[0.22em] text-maroon` with a short rule.
+
+---
+
+## 4. Card style
+
+- Light cards: `rounded-2xl border border-graphite/10 bg-white shadow-sm`, hover
+  `shadow-xl shadow-black/10` + ~`-8px` lift.
+- Image area: fixed aspect (`aspect-[4/3]`), `overflow-hidden`, `object-cover`, dark
+  fallback bg; subtle image zoom on hover.
+- Tag pill top-left (`bg-maroon text-cream`), favorite button top-right (silver/white chip).
+- Macros shown in an `bg-offwhite` inset grid; values in `font-display text-maroon`.
+- Price in `font-display`; primary action right-aligned.
+- Dark cards/panels use `gym-surface` or `bg-maroon` with `text-cream` + `ring-cream/15`.
+
+---
+
+## 5. Button & chip style
+
+Buttons: reuse **`src/components/landing/CtaButton.tsx`** (`primary` maroon, `secondary`
+outline, `ghost` on dark, `silver` brushed-metal). Pill shape, `min-h-11/13`, spring
+hover/tap, visible focus ring.
+
+Filter chips: pill `rounded-full`, `min-h-9/11` (touch-friendly), default
+`bg-white/offwhite border border-graphite/15`, **selected** `bg-maroon text-cream` **plus**
+an icon/checkmark so selection isn't conveyed by color alone. `aria-pressed` on toggles;
+keyboard focusable.
+
+Touch targets ≥ 44px on interactive controls.
+
+---
+
+## 6. Product image style
+
+- Use `next/image` with correct `sizes`; `object-cover` for food, `object-contain` for
+  logos/icons. Always set aspect ratio / width-height to avoid layout shift.
+- Food photography is cinematic: charcoal/graphite backgrounds, maroon ambient glow,
+  brushed-metal accents. Green only from the food itself.
+- Reuse assets in `public/images/` (`meal-*.png`, `hero-meal.png`, etc.).
+
+---
+
+## 7. Icon style
+
+- Inline stroke icons: **`src/components/landing/icons.tsx`** (`<Icon name=… />`),
+  1.6 stroke, `currentColor`, rounded caps. Keep this set consistent; don't mix in
+  foreign icon packs.
+- Brand SVG icons that ship their own fill (e.g. `goal-build-muscle`) get a dedicated
+  wrapper (`BuildMuscleIcon`) with a pre-colored file per surface (maroon vs white) —
+  never recolor them with CSS.
+
+---
+
+## 8. Motion / animation
+
+- Library: **`motion/react`** only (never `framer-motion`). Shared variants in
+  `src/lib/landing-animations.ts` (`fadeUp`, `scaleIn`, `staggerContainer/Item`, …),
+  premium easing `[0.22, 1, 0.36, 1]`.
+- Use motion only where purposeful: section/card reveal (`whileInView`, once), staggered
+  grids, modal open/close, hover/tap. Avoid over-animation and looping motion.
+- **Reduced motion:** every animated client component calls `useReducedMotion()` and
+  renders a static state when set; there is also a global CSS fallback in `globals.css`.
+- Never animate in a way that causes layout shift (animate transform/opacity, not layout).
+
+---
+
+## 9. Responsive behavior
+
+- Mobile-first. Verified breakpoints: 320 / 375 / 430 / 768 / 1024 / 1366 / 1440 / 1920.
+- No horizontal scroll (`overflow-x: clip` on `html`); decorative/skewed elements live in
+  `overflow-hidden` parents.
+- Grids: 1 col mobile → 2 col tablet → 3–4 col desktop. Sticky bars use offsets tied to the
+  top chrome (`--top-chrome-height`) and must never cover content.
+- Filters: wrap on desktop, horizontally scrollable chips on mobile. Modal: centered on
+  desktop, bottom-sheet/full-screen on mobile.
+
+---
+
+## 10. Accessibility
+
+- Semantic landmarks (`header`, `nav`, `main`, `section`, `footer`) and correct heading order.
+- Real `<button>`/`<a>` for actions; `aria-pressed` for toggle chips, `aria-current` for the
+  active route, descriptive `aria-label`s.
+- Modals: `role="dialog"` + `aria-modal`, labelled by the title, Escape to close, focus moved
+  in and not lost, body scroll locked while open, backdrop click closes.
+- Visible focus rings (branded maroon outline). Don't rely on color alone — pair with
+  icon/text/weight. Meaningful `alt` text on content images; `alt=""`+`aria-hidden` on
+  decorative ones. Maintain readable contrast (white logo/icon on maroon, etc.).
