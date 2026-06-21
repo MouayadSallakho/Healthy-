@@ -193,32 +193,8 @@ export function ProductDetailModal({ product, list, onClose, onNavigate }: Props
             transition={{ type: "spring", stiffness: 320, damping: 32 }}
             className="relative z-10 flex h-[88svh] w-full flex-col overflow-hidden rounded-t-3xl bg-cream shadow-2xl sm:h-[86vh] sm:max-w-4xl sm:rounded-3xl"
           >
-            {/* Top controls */}
-            <div className="absolute right-3 top-3 z-30 flex items-center gap-2">
-              {hasNav && (
-                <>
-                  <button
-                    type="button"
-                    onClick={goPrev}
-                    aria-label="Previous product"
-                    className="grid h-10 w-10 place-items-center rounded-full bg-white/90 text-graphite shadow ring-1 ring-black/5 backdrop-blur transition-colors hover:bg-white hover:text-maroon"
-                  >
-                    <svg viewBox="0 0 24 24" className="h-5 w-5" aria-hidden="true">
-                      <path d="M15 6l-6 6 6 6" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={goNext}
-                    aria-label="Next product"
-                    className="grid h-10 w-10 place-items-center rounded-full bg-white/90 text-graphite shadow ring-1 ring-black/5 backdrop-blur transition-colors hover:bg-white hover:text-maroon"
-                  >
-                    <svg viewBox="0 0 24 24" className="h-5 w-5" aria-hidden="true">
-                      <path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                  </button>
-                </>
-              )}
+            {/* Top control — close only (prev/next moved to the bottom bar) */}
+            <div className="absolute right-3 top-3 z-30">
               <button
                 ref={closeRef}
                 type="button"
@@ -348,23 +324,55 @@ export function ProductDetailModal({ product, list, onClose, onNavigate }: Props
                   </div>
                 </div>
 
-                {/* Price + availability — clean, light footer (no order button) */}
-                <div className="mt-auto flex items-center justify-between gap-4 border-t border-graphite/10 pt-4">
-                  <span className="font-display text-2xl font-bold text-graphite">
-                    {formatPrice(product)}
-                  </span>
-                  <span className="flex items-center gap-1.5 text-xs font-medium text-graphite/55">
-                    <Icon
-                      name={product.availability === "available" ? "check" : "clock"}
-                      className="h-3.5 w-3.5"
-                      aria-hidden="true"
-                    />
-                    {availabilityLabel(product.availability)}
-                  </span>
-                </div>
               </div>
                 </motion.div>
               </AnimatePresence>
+            </div>
+
+            {/* Persistent bottom bar: price + availability, then prev/next.
+                Sits outside the slide viewport so the controls stay put and
+                never cover the scrolling card content. */}
+            <div className="shrink-0 border-t border-graphite/10 px-6 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4 sm:px-8">
+              <div className="flex items-center justify-between gap-4">
+                <span className="font-display text-2xl font-bold text-graphite">
+                  {formatPrice(product)}
+                </span>
+                <span className="flex items-center gap-1.5 text-xs font-medium text-graphite/55">
+                  <Icon
+                    name={product.availability === "available" ? "check" : "clock"}
+                    className="h-3.5 w-3.5"
+                    aria-hidden="true"
+                  />
+                  {availabilityLabel(product.availability)}
+                </span>
+              </div>
+
+              {hasNav && (
+                <div className="mt-3 flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={goPrev}
+                    aria-label="Previous product"
+                    className="inline-flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-full border border-graphite/20 bg-white text-sm font-semibold text-graphite transition-colors hover:border-maroon hover:text-maroon focus-visible:outline-2 focus-visible:outline-offset-[3px]"
+                  >
+                    <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden="true">
+                      <path d="M15 6l-6 6 6 6" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                    Previous
+                  </button>
+                  <button
+                    type="button"
+                    onClick={goNext}
+                    aria-label="Next product"
+                    className="inline-flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-full border border-graphite/20 bg-white text-sm font-semibold text-graphite transition-colors hover:border-maroon hover:text-maroon focus-visible:outline-2 focus-visible:outline-offset-[3px]"
+                  >
+                    Next
+                    <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden="true">
+                      <path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </button>
+                </div>
+              )}
             </div>
           </motion.div>
         </motion.div>
