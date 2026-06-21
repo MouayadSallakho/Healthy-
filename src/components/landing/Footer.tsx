@@ -80,15 +80,15 @@ export function Footer() {
             </ul>
           </div>
 
-          <div className="min-w-0">
+          <div className="col-span-2 min-w-0 md:col-span-1">
             <h3 className="text-xs font-semibold uppercase tracking-widest text-silver-light/60">
               Hours
             </h3>
             <ul className="mt-4 flex flex-col gap-2.5 text-sm text-cream/85">
               {footer.hours.map((h) => (
-                <li key={h.day} className="flex justify-between gap-3">
-                  <span className="text-silver-light/70">{h.day}</span>
-                  <span>{h.time}</span>
+                <li key={h.day} className="flex justify-between gap-4">
+                  <span className="whitespace-nowrap text-silver-light/70">{h.day}</span>
+                  <span className="whitespace-nowrap">{h.time}</span>
                 </li>
               ))}
             </ul>

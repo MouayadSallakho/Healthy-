@@ -173,7 +173,6 @@ export function ProductFilters({
             label={categoryMeta[c].label}
             active={filters.category === c}
             onClick={() => onCategory(c)}
-            iconNode={<Icon name={categoryMeta[c].icon} className="h-4 w-4" aria-hidden="true" />}
           />
         ))}
       </FilterGroup>

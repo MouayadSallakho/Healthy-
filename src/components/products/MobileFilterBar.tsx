@@ -127,13 +127,12 @@ export function MobileFilterBar({
         >
           {filterCategories.map((c) => (
             <div key={c} data-cat={c} className="shrink-0 snap-center">
+              {/* Category chips are text-only filters (no leading icon) so they
+                  never read as an "add" action. */}
               <FilterChip
                 label={categoryMeta[c].label}
                 active={filters.category === c}
                 onClick={() => onCategory(c)}
-                iconNode={
-                  <Icon name={categoryMeta[c].icon} className="h-4 w-4" aria-hidden="true" />
-                }
               />
             </div>
           ))}
@@ -236,7 +235,6 @@ export function MobileFilterBar({
                       label={categoryMeta[c].label}
                       active={filters.category === c}
                       onClick={() => onCategory(c)}
-                      iconNode={<Icon name={categoryMeta[c].icon} className="h-4 w-4" aria-hidden="true" />}
                     />
                   ))}
                 </FilterSection>
