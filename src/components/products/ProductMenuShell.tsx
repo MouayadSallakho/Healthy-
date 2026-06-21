@@ -152,7 +152,7 @@ export function ProductMenuShell() {
   const revealKey = `${filters.category}|${filters.goals.join(",")}|${filters.macros.join(",")}|${filters.query}|${filters.sort}`;
 
   return (
-    <section aria-label="Menu" className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8 lg:py-14">
+    <section aria-label="Menu" className="mx-auto max-w-7xl px-4 py-4 sm:px-6 sm:py-10 lg:px-8 lg:py-14">
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-[264px_1fr] lg:gap-10">
         {/* Desktop sidebar */}
         <aside className="hidden lg:block">
@@ -206,7 +206,7 @@ export function ProductMenuShell() {
             </ProductSortBar>
           </div> */}
 
-          <div className="mt-6">
+          <div className="mt-3 sm:mt-6">
             {filtered.length > 0 ? (
               <>
                 <ProductGrid

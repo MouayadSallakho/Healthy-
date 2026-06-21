@@ -25,7 +25,7 @@ export function TopPromoBar() {
 
   return (
     <div className="bg-maroon text-cream">
-      <div className="mx-auto flex h-9 max-w-7xl items-center justify-center px-4 text-center">
+      <div className="mx-auto flex h-8 max-w-7xl items-center justify-center px-4 text-center sm:h-9">
         <AnimatePresence mode="wait" initial={false}>
           <motion.p
             key={index}

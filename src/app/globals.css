@@ -43,7 +43,8 @@
   --foreground: var(--color-graphite);
 
   /* Promo bar (h-9 = 2.25rem) + navbar (h-16 = 4rem). Used so the hero can
-     fill the first viewport while accounting for the sticky top chrome. */
+     fill the first viewport while accounting for the sticky top chrome.
+     On mobile the chrome is shorter (see media query below). */
   --top-chrome-height: 6.25rem;
   /* Sticky navbar height alone. Used to size the internally-scrollable desktop
      filter sidebar. */
@@ -53,6 +54,14 @@
      controls multiply the chrome height by this so they drop to the top when
      the header hides. */
   --chrome-offset: 1;
+}
+
+/* Mobile chrome is shorter: promo h-8 (2rem) + navbar h-14 (3.5rem) = 5.5rem.
+   Keeps the sticky products filter bar aligned to the shorter header. */
+@media (max-width: 639.98px) {
+  :root {
+    --top-chrome-height: 5.5rem;
+  }
 }
 
 * {

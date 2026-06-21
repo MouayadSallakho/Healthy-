@@ -55,7 +55,7 @@ export function Navbar({
         >
           <nav
             aria-label="Primary"
-            className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8"
+            className="mx-auto flex h-14 max-w-7xl items-center justify-between gap-4 px-4 sm:h-16 sm:px-6 lg:px-8"
           >
             <a href={logoHref} aria-label="Barbell Kitchen — home" className="text-graphite">
               <RotatingHeaderLogo />
