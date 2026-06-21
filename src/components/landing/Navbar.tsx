@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { motion, useReducedMotion } from "motion/react";
 import { CtaButton } from "./CtaButton";
-import { Logo } from "./Logo";
+import { RotatingHeaderLogo } from "./RotatingHeaderLogo";
 import { MobileMenu } from "./MobileMenu";
 import { navLinks, PRODUCTS_ROUTE, brand } from "@/lib/landing-content";
 
@@ -58,7 +58,7 @@ export function Navbar({
             className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8"
           >
             <a href={logoHref} aria-label="Barbell Kitchen — home" className="text-graphite">
-              <Logo variant="red" className="h-9 w-auto sm:h-10" priority />
+              <RotatingHeaderLogo />
             </a>
 
             <div className="hidden items-center gap-1 lg:flex">

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { BrandIntro } from "@/components/landing/BrandIntro";
 import { TopPromoBar } from "@/components/landing/TopPromoBar";
 import { Navbar } from "@/components/landing/Navbar";
 import { HideOnScrollHeader } from "@/components/landing/HideOnScrollHeader";
@@ -26,6 +27,9 @@ const productNavLinks = [
 export default function ProductsPage() {
   return (
     <div className="flex min-h-screen flex-col bg-cream">
+      {/* Shows on every entry/refresh; never reads or sets bk-intro-seen.
+          Quick timing so the repeated intro doesn't nag. */}
+      <BrandIntro mode="always" initialShouldShowIntro timingPreset="quick" />
       <HideOnScrollHeader>
         <TopPromoBar />
         <Navbar links={productNavLinks} logoHref="/" activeHref="/products" />

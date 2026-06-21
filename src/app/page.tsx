@@ -25,7 +25,11 @@ export default async function Home() {
 
   return (
     <div className="flex min-h-screen flex-col bg-cream">
-      <BrandIntro initialShouldShowIntro={!introSeen} />
+      <BrandIntro
+        mode="once-per-session"
+        initialShouldShowIntro={!introSeen}
+        timingPreset="cinematic"
+      />
       <HideOnScrollHeader>
         <TopPromoBar />
         <Navbar />

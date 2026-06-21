@@ -4,9 +4,41 @@ import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { Logo } from "./Logo";
 import { Icon } from "./icons";
+import { BuildMuscleIcon } from "./BuildMuscleIcon";
 import { INTRO_COOKIE } from "@/lib/landing-content";
 
-const HOLD_MS = 1700; // logo lingers ~1.7s, then a 0.7s wipe → ~2.4s total
+// Intro choreography: the main logo appears and holds, flips left in place, the
+// second mark holds, then the metallic wipe reveals the page.
+type BrandIntroTiming = {
+  mainLogoHoldMs: number;
+  logoFlipDurationMs: number;
+  secondLogoHoldMs: number;
+  exitWipeDurationMs: number;
+};
+
+/** Homepage (once-per-session): ~4.3s total. */
+const CINEMATIC_INTRO_TIMING: BrandIntroTiming = {
+  mainLogoHoldMs: 1200,
+  logoFlipDurationMs: 900,
+  secondLogoHoldMs: 1500,
+  exitWipeDurationMs: 700,
+};
+
+/** Products (every entry/refresh): ~2.7s total — shorter so it doesn't nag. */
+const QUICK_INTRO_TIMING: BrandIntroTiming = {
+  mainLogoHoldMs: 900,
+  logoFlipDurationMs: 600,
+  secondLogoHoldMs: 700,
+  exitWipeDurationMs: 500,
+};
+
+const INTRO_TIMINGS = {
+  cinematic: CINEMATIC_INTRO_TIMING,
+  quick: QUICK_INTRO_TIMING,
+} as const;
+
+export type IntroTimingPreset = keyof typeof INTRO_TIMINGS;
+
 const ease = [0.22, 1, 0.36, 1] as const;
 
 /** Persist the "seen" marker for the rest of the browser session. */
@@ -40,27 +72,49 @@ const grain =
  * the server prop). The page underneath is always rendered (SEO-/no-JS-safe).
  *
  * - Shows once per browser session (session cookie + sessionStorage fallback).
- * - Auto-reveals the page after ~1.7s; also skippable (button / Escape).
+ * - Main logo flips in place to reveal the Build Muscle mark, then the metallic
+ *   wipe reveals the page. Timing comes from the `timingPreset` prop (cinematic
+ *   ~4.3s for the homepage, quick ~2.7s for /products). Also skippable
+ *   (button / Escape).
  * - Reduced motion: hidden at first paint via CSS (`.bk-brand-intro`) and
  *   removed immediately on mount — no animation, no flash.
  */
 export function BrandIntro({
   initialShouldShowIntro = false,
+  mode = "once-per-session",
+  timingPreset = "cinematic",
 }: {
   initialShouldShowIntro?: boolean;
+  /**
+   * `once-per-session` (homepage): show once per browser session via the
+   * `bk-intro-seen` cookie. `always` (/products): show on every mount/refresh
+   * and never read or set the cookie.
+   */
+  mode?: "once-per-session" | "always";
+  /** `cinematic` (homepage, ~4.3s) or `quick` (/products, ~2.7s). */
+  timingPreset?: IntroTimingPreset;
 }) {
   const reduce = useReducedMotion();
-  const [show, setShow] = useState(initialShouldShowIntro);
+  // `always` is shown on every mount; otherwise the server's cookie decision
+  // drives the (flash-free) initial state.
+  const [show, setShow] = useState(mode === "always" ? true : initialShouldShowIntro);
   const skipRef = useRef<HTMLButtonElement>(null);
+
+  // All phases derive from the selected preset so they stay synchronized.
+  const timing = INTRO_TIMINGS[timingPreset];
+  const holdMs =
+    timing.mainLogoHoldMs + timing.logoFlipDurationMs + timing.secondLogoHoldMs;
 
   // On mount: persist the session marker and schedule the auto-reveal. Reduced
   // motion removes the overlay immediately (CSS already hid it pre-JS).
   useEffect(() => {
     if (!show) return;
-    markIntroSeen();
-    const t = setTimeout(() => setShow(false), reduce ? 0 : HOLD_MS);
+    // Only the homepage persists the "seen" marker; `always` mode must not
+    // touch the cookie or it would suppress the homepage intro.
+    if (mode === "once-per-session") markIntroSeen();
+    const t = setTimeout(() => setShow(false), reduce ? 0 : holdMs);
     return () => clearTimeout(t);
-  }, [show, reduce]);
+  }, [show, reduce, mode, holdMs]);
 
   // Lock scroll + wire keyboard while the (animated) overlay is visible.
   // Skipped for reduced motion since the overlay is hidden and removed at once.
@@ -91,7 +145,7 @@ export function BrandIntro({
           exit={
             reduce
               ? { opacity: 0, transition: { duration: 0 } }
-              : { y: "-100%", transition: { duration: 0.7, ease } }
+              : { y: "-100%", transition: { duration: timing.exitWipeDurationMs / 1000, ease } }
           }
           className="bk-brand-intro fixed inset-0 z-[120] flex flex-col items-center justify-center overflow-hidden gym-surface text-cream"
         >
@@ -121,12 +175,38 @@ export function BrandIntro({
 
           {/* Content */}
           <div className="relative flex flex-col items-center px-6 text-center">
+            {/* Logo flip — fixed-size box keeps it perfectly in place while the
+                inner wrapper rotates left (rotateY) to reveal the second mark. */}
             <motion.div
-              initial={{ opacity: 0, scale: 0.92, y: 8 }}
+              initial={reduce ? false : { opacity: 0, scale: 0.92, y: 8 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               transition={{ duration: 0.6, ease, delay: 0.2 }}
+              style={{ perspective: "1000px" }}
+              className="relative h-28 w-44 sm:h-32 sm:w-52"
             >
-              <Logo variant="white" className="h-auto w-44 sm:w-52" priority />
+              <motion.div
+                initial={reduce ? false : { rotateY: 0 }}
+                animate={reduce ? undefined : { rotateY: -180 }}
+                transition={{
+                  duration: timing.logoFlipDurationMs / 1000,
+                  ease,
+                  delay: timing.mainLogoHoldMs / 1000,
+                }}
+                style={{ transformStyle: "preserve-3d" }}
+                className="relative h-full w-full"
+              >
+                {/* Front — main logo */}
+                <div className="absolute inset-0 grid place-items-center [backface-visibility:hidden]">
+                  <Logo variant="white" className="max-h-full w-auto" priority />
+                </div>
+                {/* Back — Build Muscle mark on a brushed-silver chip (maroon SVG
+                    needs a light backing for contrast on the dark intro). */}
+                <div className="absolute inset-0 grid place-items-center [transform:rotateY(180deg)] [backface-visibility:hidden]">
+                  <span className="grid place-items-center rounded-2xl brushed-metal px-7 py-5 shadow-lg ring-1 ring-black/10">
+                    <BuildMuscleIcon variant="maroon" className="h-8 w-auto sm:h-10" />
+                  </span>
+                </div>
+              </motion.div>
             </motion.div>
 
             {/* Barbell line animation */}
