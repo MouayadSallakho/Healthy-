@@ -30,7 +30,7 @@ export default function ProductsPage() {
       {/* Shows on every entry/refresh; never reads or sets bk-intro-seen.
           Quick timing so the repeated intro doesn't nag. */}
       <BrandIntro mode="always" initialShouldShowIntro timingPreset="quick" />
-      <HideOnScrollHeader>
+      <HideOnScrollHeader fixedOnMobile>
         <TopPromoBar />
         <Navbar links={productNavLinks} logoHref="/" activeHref="/products" />
       </HideOnScrollHeader>

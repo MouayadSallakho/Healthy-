@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useId, useRef } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { Icon } from "@/components/landing/icons";
 import { BuildMuscleIcon } from "@/components/landing/BuildMuscleIcon";
@@ -21,6 +21,22 @@ type Props = {
   onNavigate: (id: string) => void;
 };
 
+// Direction-aware slide: next (dir 1) enters from the right + exits left;
+// previous (dir -1) enters from the left + exits right — so it reads like
+// moving between cards in a carousel.
+const slideVariants = {
+  enter: (dir: number) => ({ x: dir >= 0 ? "100%" : "-100%", opacity: 0 }),
+  center: { x: "0%", opacity: 1 },
+  exit: (dir: number) => ({ x: dir >= 0 ? "-100%" : "100%", opacity: 0 }),
+};
+
+// Reduced motion: no slide, just a quick fade.
+const fadeVariants = {
+  enter: { opacity: 0 },
+  center: { opacity: 1 },
+  exit: { opacity: 0 },
+};
+
 /**
  * Branded product detail dialog. Centered modal on desktop, bottom sheet on
  * mobile. Esc closes, ←/→ navigate, focus is moved in and restored, body scroll
@@ -38,12 +54,17 @@ export function ProductDetailModal({ product, list, onClose, onNavigate }: Props
   const index = product ? list.findIndex((p) => p.id === product.id) : -1;
   const hasNav = index >= 0 && list.length > 1;
 
+  // +1 = went to next (slide left), -1 = previous (slide right).
+  const [direction, setDirection] = useState(0);
+
   const goPrev = () => {
     if (!hasNav) return;
+    setDirection(-1);
     onNavigate(list[(index - 1 + list.length) % list.length].id);
   };
   const goNext = () => {
     if (!hasNav) return;
+    setDirection(1);
     onNavigate(list[(index + 1) % list.length].id);
   };
 
@@ -170,7 +191,7 @@ export function ProductDetailModal({ product, list, onClose, onNavigate }: Props
             animate={{ y: 0, opacity: 1 }}
             exit={reduce ? undefined : { y: 40, opacity: 0 }}
             transition={{ type: "spring", stiffness: 320, damping: 32 }}
-            className="relative z-10 flex max-h-[92svh] w-full flex-col overflow-hidden rounded-t-3xl bg-cream shadow-2xl sm:max-h-[88vh] sm:max-w-4xl sm:rounded-3xl"
+            className="relative z-10 flex h-[88svh] w-full flex-col overflow-hidden rounded-t-3xl bg-cream shadow-2xl sm:h-[86vh] sm:max-w-4xl sm:rounded-3xl"
           >
             {/* Top controls */}
             <div className="absolute right-3 top-3 z-30 flex items-center gap-2">
@@ -214,16 +235,25 @@ export function ProductDetailModal({ product, list, onClose, onNavigate }: Props
             {/* Mobile grab handle */}
             <div className="mx-auto mt-2 h-1.5 w-12 shrink-0 rounded-full bg-graphite/15 sm:hidden" aria-hidden="true" />
 
-            {/* Keyed by product → quick crossfade on swipe/arrow nav, and the
-                scroll resets to top per product. `overscroll-contain` stops
-                scroll from chaining to the locked page behind the modal. */}
-            <motion.div
-              key={product.id}
-              initial={reduce ? false : { opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.2 }}
-              className="grid min-h-0 flex-1 grid-cols-1 overflow-y-auto overscroll-contain sm:grid-cols-2 sm:overflow-hidden"
-            >
+            {/* Slide viewport: clips the horizontal card transition. Each
+                product card is absolutely stacked and slides in/out from the
+                correct side (direction-aware). `overscroll-contain` stops scroll
+                from chaining to the locked page behind the modal. */}
+            <div className="relative min-h-0 flex-1 overflow-hidden">
+              <AnimatePresence custom={direction} initial={false}>
+                <motion.div
+                  key={product.id}
+                  custom={direction}
+                  variants={reduce ? fadeVariants : slideVariants}
+                  initial="enter"
+                  animate="center"
+                  exit="exit"
+                  transition={{
+                    x: { duration: reduce ? 0 : 0.35, ease: [0.22, 1, 0.36, 1] },
+                    opacity: { duration: reduce ? 0 : 0.25 },
+                  }}
+                  className="absolute inset-0 grid grid-cols-1 overflow-y-auto overscroll-contain sm:grid-cols-2 sm:overflow-hidden"
+                >
               {/* Image */}
               <div className="relative aspect-[4/3] w-full bg-graphite sm:aspect-auto sm:h-full">
                 <Image
@@ -318,31 +348,24 @@ export function ProductDetailModal({ product, list, onClose, onNavigate }: Props
                   </div>
                 </div>
 
-                {/* Footer CTA */}
-                <div className="mt-auto flex items-center justify-between gap-4 border-t border-graphite/10 pt-5">
-                  <div>
-                    <span className="font-display text-2xl font-bold text-graphite">
-                      {formatPrice(product)}
-                    </span>
-                    <span className="mt-0.5 flex items-center gap-1 text-xs font-medium text-graphite/55">
-                      <Icon
-                        name={product.availability === "available" ? "check" : "clock"}
-                        className="h-3.5 w-3.5"
-                        aria-hidden="true"
-                      />
-                      {availabilityLabel(product.availability)}
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    className="inline-flex min-h-12 items-center gap-2 rounded-full bg-maroon px-6 text-sm font-semibold text-cream shadow-lg shadow-maroon/25 transition-colors hover:bg-maroon-bright"
-                  >
-                    <Icon name="bolt" className="h-4 w-4" />
-                    {product.kind === "plan" ? "Choose this plan" : "Add to order"}
-                  </button>
+                {/* Price + availability — clean, light footer (no order button) */}
+                <div className="mt-auto flex items-center justify-between gap-4 border-t border-graphite/10 pt-4">
+                  <span className="font-display text-2xl font-bold text-graphite">
+                    {formatPrice(product)}
+                  </span>
+                  <span className="flex items-center gap-1.5 text-xs font-medium text-graphite/55">
+                    <Icon
+                      name={product.availability === "available" ? "check" : "clock"}
+                      className="h-3.5 w-3.5"
+                      aria-hidden="true"
+                    />
+                    {availabilityLabel(product.availability)}
+                  </span>
                 </div>
               </div>
-            </motion.div>
+                </motion.div>
+              </AnimatePresence>
+            </div>
           </motion.div>
         </motion.div>
       )}

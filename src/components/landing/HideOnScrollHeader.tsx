@@ -15,11 +15,23 @@ import { useEffect, useRef, useState } from "react";
  * - Publishes `--chrome-offset` (1 shown / 0 hidden) on `<html>` so sticky page
  *   controls (e.g. the products filter bar) can drop to the top when hidden.
  *
+ * `fixedOnMobile`: below `lg` the header stays pinned/visible (no hide on
+ * scroll) — used on `/products` so the menu controls never sit under a
+ * disappearing header. It still hides on scroll at `lg+` (desktop unchanged).
+ * The header is `position: sticky` (in flow), so "always visible" needs no
+ * spacer and causes no layout jump.
+ *
  * NOTE: a transform establishes a containing block for `position: fixed`
  * descendants, so fixed drawers/menus (MobileMenu) must NOT be DOM descendants
  * of this element — MobileMenu portals to `<body>`.
  */
-export function HideOnScrollHeader({ children }: { children: React.ReactNode }) {
+export function HideOnScrollHeader({
+  children,
+  fixedOnMobile = false,
+}: {
+  children: React.ReactNode;
+  fixedOnMobile?: boolean;
+}) {
   const ref = useRef<HTMLDivElement>(null);
   const [hidden, setHidden] = useState(false);
 
@@ -33,7 +45,12 @@ export function HideOnScrollHeader({ children }: { children: React.ReactNode }) 
       if (current === next) return;
       current = next;
       setHidden(next);
-      document.documentElement.style.setProperty("--chrome-offset", next ? "0" : "1");
+      // When pinned on mobile, keep the offset at 1 so the `< lg` filter bar
+      // stays directly below the always-visible header. (Desktop has no sticky
+      // filter bar consuming this, so leaving it untouched is safe there.)
+      if (!fixedOnMobile) {
+        document.documentElement.style.setProperty("--chrome-offset", next ? "0" : "1");
+      }
     };
 
     const update = () => {
@@ -67,13 +84,17 @@ export function HideOnScrollHeader({ children }: { children: React.ReactNode }) 
       window.removeEventListener("scroll", onScroll);
       document.documentElement.style.setProperty("--chrome-offset", "1");
     };
-  }, []);
+  }, [fixedOnMobile]);
+
+  // `fixedOnMobile` gates the hide transform to `lg+`, so below `lg` the header
+  // never translates away (stays visible); otherwise it hides on every size.
+  const hiddenClass = fixedOnMobile ? "lg:-translate-y-full" : "-translate-y-full";
 
   return (
     <div
       ref={ref}
       className={`sticky top-0 z-40 transition-transform duration-300 ease-out ${
-        hidden ? "-translate-y-full" : "translate-y-0"
+        hidden ? hiddenClass : "translate-y-0"
       }`}
     >
       {children}
