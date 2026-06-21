@@ -171,9 +171,11 @@ export function ProductMenuShell() {
 
         {/* Main column */}
         <div className="min-w-0">
-          {/* Mobile sticky filter bar. Solid bg (no backdrop-filter) so the
-              drawer's fixed positioning stays relative to the viewport. */}
-          <div className="sticky top-16 z-30 -mx-4 border-b border-graphite/10 bg-cream px-4 py-3 sm:-mx-6 sm:px-6 lg:hidden">
+          {/* Mobile sticky filter bar. Sits below the header when shown and
+              rises to the top when the header hides (via --chrome-offset).
+              Solid bg (no backdrop-filter) so the drawer's fixed positioning
+              stays relative to the viewport. */}
+          <div className="sticky top-[calc(var(--top-chrome-height)*var(--chrome-offset,1))] z-30 -mx-4 border-b border-graphite/10 bg-cream px-4 py-3 transition-[top] duration-300 ease-out sm:-mx-6 sm:px-6 lg:hidden">
             <MobileFilterBar
               filters={filters}
               activeCount={activeCount}

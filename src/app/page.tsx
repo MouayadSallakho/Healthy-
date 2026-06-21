@@ -1,4 +1,7 @@
+import { cookies } from "next/headers";
+import { INTRO_COOKIE } from "@/lib/landing-content";
 import { BrandIntro } from "@/components/landing/BrandIntro";
+import { HideOnScrollHeader } from "@/components/landing/HideOnScrollHeader";
 import { TopPromoBar } from "@/components/landing/TopPromoBar";
 import { Navbar } from "@/components/landing/Navbar";
 import { HeroSection } from "@/components/landing/HeroSection";
@@ -15,12 +18,18 @@ import { CtaSection } from "@/components/landing/CtaSection";
 import { Footer } from "@/components/landing/Footer";
 import { MobileStickyOrder } from "@/components/landing/MobileStickyOrder";
 
-export default function Home() {
+export default async function Home() {
+  // Decide on the server (from a session cookie) so the intro overlay is part
+  // of the first paint — no flash of the landing page before it appears.
+  const introSeen = (await cookies()).get(INTRO_COOKIE)?.value === "1";
+
   return (
     <div className="flex min-h-screen flex-col bg-cream">
-      <BrandIntro />
-      <TopPromoBar />
-      <Navbar />
+      <BrandIntro initialShouldShowIntro={!introSeen} />
+      <HideOnScrollHeader>
+        <TopPromoBar />
+        <Navbar />
+      </HideOnScrollHeader>
 
       <main className="flex-1">
         <HeroSection />

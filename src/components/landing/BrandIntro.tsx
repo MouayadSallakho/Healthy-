@@ -4,10 +4,25 @@ import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { Logo } from "./Logo";
 import { Icon } from "./icons";
+import { INTRO_COOKIE } from "@/lib/landing-content";
 
-const SESSION_KEY = "bk-intro-seen";
 const HOLD_MS = 1700; // logo lingers ~1.7s, then a 0.7s wipe → ~2.4s total
 const ease = [0.22, 1, 0.36, 1] as const;
+
+/** Persist the "seen" marker for the rest of the browser session. */
+function markIntroSeen() {
+  try {
+    // Session cookie (no Max-Age/Expires) → cleared when the session ends.
+    document.cookie = `${INTRO_COOKIE}=1; path=/; SameSite=Lax`;
+  } catch {
+    /* ignore */
+  }
+  try {
+    sessionStorage.setItem(INTRO_COOKIE, "1");
+  } catch {
+    /* ignore */
+  }
+}
 
 const words = ["Clean Fuel", "Inside Your Gym", "Ready in 20 Min"];
 
@@ -18,57 +33,39 @@ const grain =
 /**
  * Premium one-time Brand Reveal Intro.
  *
- * A client-only fixed overlay rendered above the (already server-rendered)
- * landing page. The page itself is never gated behind this component, so it
- * stays crawlable/accessible and is never blocked if JS fails — the overlay
- * only mounts via an effect after we confirm it should play.
+ * The decision to show is made on the SERVER (the homepage reads the
+ * `bk-intro-seen` session cookie and passes `initialShouldShowIntro`), so the
+ * overlay is part of the first paint — there is no flash of the landing page
+ * before it appears, and no hydration mismatch (client initial state mirrors
+ * the server prop). The page underneath is always rendered (SEO-/no-JS-safe).
  *
- * - Shows once per browser session (sessionStorage).
- * - Auto-reveals the page after ~1.5s; also skippable (button / Escape).
- * - Fully skipped when the user prefers reduced motion.
+ * - Shows once per browser session (session cookie + sessionStorage fallback).
+ * - Auto-reveals the page after ~1.7s; also skippable (button / Escape).
+ * - Reduced motion: hidden at first paint via CSS (`.bk-brand-intro`) and
+ *   removed immediately on mount — no animation, no flash.
  */
-export function BrandIntro() {
+export function BrandIntro({
+  initialShouldShowIntro = false,
+}: {
+  initialShouldShowIntro?: boolean;
+}) {
   const reduce = useReducedMotion();
-  const [show, setShow] = useState(false);
+  const [show, setShow] = useState(initialShouldShowIntro);
   const skipRef = useRef<HTMLButtonElement>(null);
 
-  // Decide whether to play, after mount (avoids hydration mismatch + no-JS block).
-  useEffect(() => {
-    let alreadySeen = false;
-    try {
-      alreadySeen = sessionStorage.getItem(SESSION_KEY) === "1";
-    } catch {
-      // sessionStorage unavailable (private mode etc.) — just skip the intro.
-      return;
-    }
-
-    if (alreadySeen || reduce) {
-      try {
-        sessionStorage.setItem(SESSION_KEY, "1");
-      } catch {
-        /* ignore */
-      }
-      return;
-    }
-
-    try {
-      sessionStorage.setItem(SESSION_KEY, "1");
-    } catch {
-      /* ignore */
-    }
-    // Reveal on the next frame (keeps the state update out of the effect body;
-    // dark-on-dark with the hero means there's no perceptible flash).
-    const raf = requestAnimationFrame(() => setShow(true));
-    const t = setTimeout(() => setShow(false), HOLD_MS);
-    return () => {
-      cancelAnimationFrame(raf);
-      clearTimeout(t);
-    };
-  }, [reduce]);
-
-  // Lock scroll + wire keyboard while the overlay is visible.
+  // On mount: persist the session marker and schedule the auto-reveal. Reduced
+  // motion removes the overlay immediately (CSS already hid it pre-JS).
   useEffect(() => {
     if (!show) return;
+    markIntroSeen();
+    const t = setTimeout(() => setShow(false), reduce ? 0 : HOLD_MS);
+    return () => clearTimeout(t);
+  }, [show, reduce]);
+
+  // Lock scroll + wire keyboard while the (animated) overlay is visible.
+  // Skipped for reduced motion since the overlay is hidden and removed at once.
+  useEffect(() => {
+    if (!show || reduce) return;
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     skipRef.current?.focus();
@@ -82,7 +79,7 @@ export function BrandIntro() {
       document.body.style.overflow = prevOverflow;
       document.removeEventListener("keydown", onKey);
     };
-  }, [show]);
+  }, [show, reduce]);
 
   return (
     <AnimatePresence>
@@ -91,8 +88,12 @@ export function BrandIntro() {
           role="dialog"
           aria-label="Barbell Kitchen brand intro"
           initial={{ opacity: 1 }}
-          exit={{ y: "-100%", transition: { duration: 0.7, ease } }}
-          className="fixed inset-0 z-[120] flex flex-col items-center justify-center overflow-hidden gym-surface text-cream"
+          exit={
+            reduce
+              ? { opacity: 0, transition: { duration: 0 } }
+              : { y: "-100%", transition: { duration: 0.7, ease } }
+          }
+          className="bk-brand-intro fixed inset-0 z-[120] flex flex-col items-center justify-center overflow-hidden gym-surface text-cream"
         >
           {/* Maroon glow */}
           <div

@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { CtaButton } from "./CtaButton";
 import { Logo } from "./Logo";
@@ -28,6 +29,13 @@ export function MobileMenu({
 }: MobileMenuProps) {
   const reduce = useReducedMotion();
   const panelRef = useRef<HTMLDivElement>(null);
+  // Portal target. Rendering to <body> keeps the drawer out of the (transformed)
+  // sticky header, so its `position: fixed` stays relative to the viewport.
+  const [container, setContainer] = useState<HTMLElement | null>(null);
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setContainer(document.body));
+    return () => cancelAnimationFrame(id);
+  }, []);
 
   useEffect(() => {
     if (!open) return;
@@ -49,7 +57,9 @@ export function MobileMenu({
     };
   }, [open, onClose]);
 
-  return (
+  if (!container) return null;
+
+  return createPortal(
     <AnimatePresence>
       {open && (
         <motion.div
@@ -132,6 +142,7 @@ export function MobileMenu({
           </motion.div>
         </motion.div>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    container,
   );
 }

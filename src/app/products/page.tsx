@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { TopPromoBar } from "@/components/landing/TopPromoBar";
 import { Navbar } from "@/components/landing/Navbar";
+import { HideOnScrollHeader } from "@/components/landing/HideOnScrollHeader";
 import { Footer } from "@/components/landing/Footer";
 import { ProductMenuHeader } from "@/components/products/ProductMenuHeader";
 import { ProductMenuShell } from "@/components/products/ProductMenuShell";
@@ -25,8 +26,10 @@ const productNavLinks = [
 export default function ProductsPage() {
   return (
     <div className="flex min-h-screen flex-col bg-cream">
-      <TopPromoBar />
-      <Navbar links={productNavLinks} logoHref="/" activeHref="/products" />
+      <HideOnScrollHeader>
+        <TopPromoBar />
+        <Navbar links={productNavLinks} logoHref="/" activeHref="/products" />
+      </HideOnScrollHeader>
 
       <main className="flex-1">
         <ProductMenuHeader />

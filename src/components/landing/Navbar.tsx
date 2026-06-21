@@ -38,11 +38,13 @@ export function Navbar({
 
   return (
     <>
+      {/* Positioning/stickiness is owned by <HideOnScrollHeader>; this stays
+          in-flow within it. */}
       <motion.header
         initial={reduce ? false : { y: -80, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1], delay: 0.05 }}
-        className="sticky top-0 z-40"
+        className="relative z-40"
       >
         <div
           className={`transition-colors duration-300 ${

@@ -13,6 +13,14 @@
  */
 export const PRODUCTS_ROUTE = "/products";
 
+/**
+ * Session cookie name for the one-time Brand Reveal Intro. Lives here (a
+ * server-safe module) so the homepage server component can read it AND the
+ * client `BrandIntro` can set it — a `"use client"` module's exports become
+ * client-reference proxies on the server, so the constant can't live there.
+ */
+export const INTRO_COOKIE = "bk-intro-seen";
+
 export type IconName =
   | "protein"
   | "leaf"

@@ -45,9 +45,14 @@
   /* Promo bar (h-9 = 2.25rem) + navbar (h-16 = 4rem). Used so the hero can
      fill the first viewport while accounting for the sticky top chrome. */
   --top-chrome-height: 6.25rem;
-  /* Sticky navbar height alone (the promo bar scrolls away). Used to size the
-     internally-scrollable desktop filter sidebar. */
+  /* Sticky navbar height alone. Used to size the internally-scrollable desktop
+     filter sidebar. */
   --navbar-height: 4rem;
+
+  /* Set by <HideOnScrollHeader> (1 = header shown, 0 = hidden). Sticky page
+     controls multiply the chrome height by this so they drop to the top when
+     the header hides. */
+  --chrome-offset: 1;
 }
 
 * {
@@ -164,5 +169,12 @@ body {
     animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;
     scroll-behavior: auto !important;
+  }
+
+  /* The server may render the brand intro overlay before JS decides reduced
+     motion. Hide it at first paint so reduced-motion users never see a flash;
+     the client effect then removes it from the DOM. */
+  .bk-brand-intro {
+    display: none !important;
   }
 }
