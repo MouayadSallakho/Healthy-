@@ -1,29 +1,22 @@
 "use client";
 
-import Image from "next/image";
 import { useEffect, useId, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { Icon } from "@/components/landing/icons";
-import { BuildMuscleIcon } from "@/components/landing/BuildMuscleIcon";
-import {
-  formatPrice,
-  availabilityLabel,
-  categoryMeta,
-  goalMeta,
-  type Product,
-} from "@/lib/products-content";
+import { MenuImage } from "./MenuImage";
+import { fetchProductDetail } from "@/features/menu/menu-api";
+import type { MenuProduct, MenuProductDetail } from "@/features/menu/menu-types";
 
 type Props = {
-  product: Product | null;
-  /** Currently-filtered list, used for prev/next navigation. */
-  list: Product[];
+  product: MenuProduct | null;
+  /** Currently-loaded list, used for prev/next navigation. */
+  list: MenuProduct[];
   onClose: () => void;
   onNavigate: (id: string) => void;
 };
 
 // Direction-aware slide: next (dir 1) enters from the right + exits left;
-// previous (dir -1) enters from the left + exits right — so it reads like
-// moving between cards in a carousel.
+// previous (dir -1) enters from the left + exits right — reads like a carousel.
 const slideVariants = {
   enter: (dir: number) => ({ x: dir >= 0 ? "100%" : "-100%", opacity: 0 }),
   center: { x: "0%", opacity: 1 },
@@ -37,10 +30,19 @@ const fadeVariants = {
   exit: { opacity: 0 },
 };
 
+function isAbortError(error: unknown): boolean {
+  return error instanceof Error && error.name === "AbortError";
+}
+
 /**
  * Branded product detail dialog. Centered modal on desktop, bottom sheet on
  * mobile. Esc closes, ←/→ navigate, focus is moved in and restored, body scroll
  * is locked, and Tab is kept within the panel.
+ *
+ * The public list response has no description/ingredients, so those are fetched
+ * lazily via GET /api/menu/products/{id} (cached per id). List data (image,
+ * name, macros, price, goals) renders immediately; only description/ingredients
+ * show a short skeleton while loading.
  */
 export function ProductDetailModal({ product, list, onClose, onNavigate }: Props) {
   const reduce = useReducedMotion();
@@ -56,6 +58,9 @@ export function ProductDetailModal({ product, list, onClose, onNavigate }: Props
 
   // +1 = went to next (slide left), -1 = previous (slide right).
   const [direction, setDirection] = useState(0);
+
+  // Per-id detail cache: undefined = loading, "error" = failed, object = ready.
+  const [details, setDetails] = useState<Record<number, MenuProductDetail | "error">>({});
 
   const goPrev = () => {
     if (!hasNav) return;
@@ -94,6 +99,26 @@ export function ProductDetailModal({ product, list, onClose, onNavigate }: Props
   useEffect(() => {
     actions.current = { prev: goPrev, next: goNext, close: onClose };
   });
+
+  // Lazily fetch detail (description + ingredients) for the active product.
+  useEffect(() => {
+    if (!product) return;
+    const id = product.numericId;
+    if (details[id]) return; // already resolved (object or "error")
+    const ctrl = new AbortController();
+    let active = true;
+    fetchProductDetail(id, ctrl.signal)
+      .then((d) => {
+        if (active) setDetails((prev) => ({ ...prev, [id]: d }));
+      })
+      .catch((e) => {
+        if (active && !isAbortError(e)) setDetails((prev) => ({ ...prev, [id]: "error" }));
+      });
+    return () => {
+      active = false;
+      ctrl.abort();
+    };
+  }, [product, details]);
 
   useEffect(() => {
     if (!open) return;
@@ -162,6 +187,13 @@ export function ProductDetailModal({ product, list, onClose, onNavigate }: Props
     };
   }, [open]);
 
+  const entry = product ? details[product.numericId] : undefined;
+  const detailLoading = entry === undefined;
+  const detailReady = entry !== undefined && entry !== "error";
+  const description =
+    detailReady && entry.description ? entry.description : product?.shortDescription ?? "";
+  const ingredients = detailReady ? entry.ingredients : [];
+
   return (
     <AnimatePresence>
       {product && (
@@ -193,8 +225,32 @@ export function ProductDetailModal({ product, list, onClose, onNavigate }: Props
             transition={{ type: "spring", stiffness: 320, damping: 32 }}
             className="relative z-10 flex h-[88svh] w-full flex-col overflow-hidden rounded-t-3xl bg-cream shadow-2xl sm:h-[86vh] sm:max-w-4xl sm:rounded-3xl"
           >
-            {/* Top control — close only (prev/next moved to the bottom bar) */}
-            <div className="absolute right-3 top-3 z-30">
+            {/* Top controls */}
+            <div className="absolute right-3 top-3 z-30 flex items-center gap-2">
+              {hasNav && (
+                <>
+                  <button
+                    type="button"
+                    onClick={goPrev}
+                    aria-label="Previous product"
+                    className="grid h-10 w-10 place-items-center rounded-full bg-white/90 text-graphite shadow ring-1 ring-black/5 backdrop-blur transition-colors hover:bg-white hover:text-maroon"
+                  >
+                    <svg viewBox="0 0 24 24" className="h-5 w-5" aria-hidden="true">
+                      <path d="M15 6l-6 6 6 6" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={goNext}
+                    aria-label="Next product"
+                    className="grid h-10 w-10 place-items-center rounded-full bg-white/90 text-graphite shadow ring-1 ring-black/5 backdrop-blur transition-colors hover:bg-white hover:text-maroon"
+                  >
+                    <svg viewBox="0 0 24 24" className="h-5 w-5" aria-hidden="true">
+                      <path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </button>
+                </>
+              )}
               <button
                 ref={closeRef}
                 type="button"
@@ -211,10 +267,7 @@ export function ProductDetailModal({ product, list, onClose, onNavigate }: Props
             {/* Mobile grab handle */}
             <div className="mx-auto mt-2 h-1.5 w-12 shrink-0 rounded-full bg-graphite/15 sm:hidden" aria-hidden="true" />
 
-            {/* Slide viewport: clips the horizontal card transition. Each
-                product card is absolutely stacked and slides in/out from the
-                correct side (direction-aware). `overscroll-contain` stops scroll
-                from chaining to the locked page behind the modal. */}
+            {/* Slide viewport: clips the horizontal card transition. */}
             <div className="relative min-h-0 flex-1 overflow-hidden">
               <AnimatePresence custom={direction} initial={false}>
                 <motion.div
@@ -230,149 +283,134 @@ export function ProductDetailModal({ product, list, onClose, onNavigate }: Props
                   }}
                   className="absolute inset-0 grid grid-cols-1 overflow-y-auto overscroll-contain sm:grid-cols-2 sm:overflow-hidden"
                 >
-              {/* Image */}
-              <div className="relative aspect-[4/3] w-full bg-graphite sm:aspect-auto sm:h-full">
-                <Image
-                  src={product.image}
-                  alt={`${product.name} — ${product.shortDescription}`}
-                  fill
-                  sizes="(max-width: 640px) 100vw, 50vw"
-                  className="object-cover"
-                />
-                <span className="absolute left-4 top-4 rounded-full bg-maroon px-3 py-1 text-xs font-semibold uppercase tracking-wide text-cream shadow">
-                  {product.tag}
-                </span>
-              </div>
-
-              {/* Details */}
-              <div className="flex flex-col gap-5 p-6 sm:overflow-y-auto sm:overscroll-contain sm:p-8">
-                <div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {product.categories.map((c) => (
-                      <span
-                        key={c}
-                        className="rounded-full bg-silver-light px-2.5 py-0.5 text-[0.7rem] font-semibold uppercase tracking-wide text-graphite/70"
-                      >
-                        {categoryMeta[c].label}
+                  {/* Image */}
+                  <div className="relative aspect-[4/3] w-full bg-graphite sm:aspect-auto sm:h-full">
+                    <MenuImage
+                      src={product.image}
+                      alt={`${product.name} — ${product.shortDescription}`}
+                      sizes="(max-width: 640px) 100vw, 50vw"
+                    />
+                    {product.badge && (
+                      <span className="absolute left-4 top-4 rounded-full bg-maroon px-3 py-1 text-xs font-semibold uppercase tracking-wide text-cream shadow">
+                        {product.badge}
                       </span>
-                    ))}
+                    )}
                   </div>
-                  <h2
-                    id={titleId}
-                    className="mt-3 font-display text-3xl font-bold leading-tight tracking-tight text-graphite"
-                  >
-                    {product.name}
-                  </h2>
-                  <p id={descId} className="mt-2 text-sm leading-relaxed text-graphite/70">
-                    {product.description}
-                  </p>
-                </div>
 
-                {/* Macros */}
-                <dl className="grid grid-cols-4 gap-2 rounded-2xl bg-offwhite p-3 text-center">
-                  {[
-                    { label: "Protein", value: `${product.macros.protein}g` },
-                    { label: "Carbs", value: `${product.macros.carbs}g` },
-                    { label: "Fat", value: `${product.macros.fat}g` },
-                    { label: "Calories", value: `${product.macros.calories}` },
-                  ].map((m) => (
-                    <div key={m.label} className="flex flex-col">
-                      <dt className="text-[0.65rem] font-medium uppercase tracking-wide text-graphite/45">
-                        {m.label}
-                      </dt>
-                      <dd className="font-display text-lg font-bold text-maroon">{m.value}</dd>
-                    </div>
-                  ))}
-                </dl>
-
-                {/* Ingredients */}
-                <div>
-                  <h3 className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-graphite/55">
-                    {product.kind === "plan" ? "What's included" : "Ingredients"}
-                  </h3>
-                  <ul className="flex flex-col gap-1.5">
-                    {product.ingredients.map((ing) => (
-                      <li key={ing} className="flex items-start gap-2 text-sm text-graphite/75">
-                        <span className="mt-0.5 grid h-4 w-4 shrink-0 place-items-center rounded-full bg-maroon/10 text-maroon">
-                          <Icon name="check" className="h-3 w-3" />
-                        </span>
-                        {ing}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-
-                {/* Goals */}
-                <div>
-                  <h3 className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-graphite/55">
-                    Best for
-                  </h3>
-                  <div className="flex flex-wrap gap-2">
-                    {product.goals.map((g) => (
-                      <span
-                        key={g}
-                        className="inline-flex items-center gap-1.5 rounded-full bg-maroon/8 px-3 py-1 text-xs font-semibold text-maroon"
+                  {/* Details */}
+                  <div className="flex flex-col gap-5 p-6 sm:overflow-y-auto sm:overscroll-contain sm:p-8">
+                    <div>
+                      {product.categoryLabels.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5">
+                          {product.categoryLabels.map((label) => (
+                            <span
+                              key={label}
+                              className="rounded-full bg-silver-light px-2.5 py-0.5 text-[0.7rem] font-semibold uppercase tracking-wide text-graphite/70"
+                            >
+                              {label}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                      <h2
+                        id={titleId}
+                        className="mt-3 font-display text-3xl font-bold leading-tight tracking-tight text-graphite"
                       >
-                        {g === "build" ? (
-                          <BuildMuscleIcon variant="maroon" className="h-3.5 w-3.5" />
+                        {product.name}
+                      </h2>
+                      <div id={descId} className="mt-2">
+                        {detailLoading ? (
+                          <div className="flex flex-col gap-2" aria-hidden="true">
+                            <div className="h-3.5 w-full rounded skeleton" />
+                            <div className="h-3.5 w-11/12 rounded skeleton" />
+                            <div className="h-3.5 w-3/4 rounded skeleton" />
+                          </div>
                         ) : (
-                          <Icon name={goalMeta[g].icon} className="h-3.5 w-3.5" aria-hidden="true" />
+                          <p className="text-sm leading-relaxed text-graphite/70">{description}</p>
                         )}
-                        {goalMeta[g].label}
-                      </span>
-                    ))}
-                  </div>
-                </div>
+                      </div>
+                    </div>
 
-              </div>
+                    {/* Macros */}
+                    <dl className="grid grid-cols-4 gap-2 rounded-2xl bg-offwhite p-3 text-center">
+                      {[
+                        { label: "Protein", value: `${product.macros.protein}g` },
+                        { label: "Carbs", value: `${product.macros.carbs}g` },
+                        { label: "Fat", value: `${product.macros.fat}g` },
+                        { label: "Calories", value: `${product.macros.calories}` },
+                      ].map((m) => (
+                        <div key={m.label} className="flex flex-col">
+                          <dt className="text-[0.65rem] font-medium uppercase tracking-wide text-graphite/45">
+                            {m.label}
+                          </dt>
+                          <dd className="font-display text-lg font-bold text-maroon">{m.value}</dd>
+                        </div>
+                      ))}
+                    </dl>
+
+                    {/* Ingredients */}
+                    {(detailLoading || ingredients.length > 0) && (
+                      <div>
+                        <h3 className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-graphite/55">
+                          Ingredients
+                        </h3>
+                        {detailLoading ? (
+                          <ul className="flex flex-col gap-1.5" aria-hidden="true">
+                            <li className="h-3.5 w-2/3 rounded skeleton" />
+                            <li className="h-3.5 w-1/2 rounded skeleton" />
+                            <li className="h-3.5 w-3/5 rounded skeleton" />
+                          </ul>
+                        ) : (
+                          <ul className="flex flex-col gap-1.5">
+                            {ingredients.map((ing) => (
+                              <li key={ing} className="flex items-start gap-2 text-sm text-graphite/75">
+                                <span className="mt-0.5 grid h-4 w-4 shrink-0 place-items-center rounded-full bg-maroon/10 text-maroon">
+                                  <Icon name="check" className="h-3 w-3" />
+                                </span>
+                                {ing}
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Goals */}
+                    {product.goals.length > 0 && (
+                      <div>
+                        <h3 className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-graphite/55">
+                          Best for
+                        </h3>
+                        <div className="flex flex-wrap gap-2">
+                          {product.goals.map((g) => (
+                            <span
+                              key={g.id}
+                              className="inline-flex items-center gap-1.5 rounded-full bg-maroon/8 px-3 py-1 text-xs font-semibold text-maroon"
+                            >
+                              {g.name}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Price + availability — clean, light footer (no order button) */}
+                    <div className="mt-auto flex items-center justify-between gap-4 border-t border-graphite/10 pt-4">
+                      <span className="font-display text-2xl font-bold text-graphite">
+                        ${product.price.toFixed(2)}
+                      </span>
+                      <span className="flex items-center gap-1.5 text-xs font-medium text-graphite/55">
+                        <Icon
+                          name={product.isAvailable ? "check" : "clock"}
+                          className="h-3.5 w-3.5"
+                          aria-hidden="true"
+                        />
+                        {product.isAvailable ? "Available today" : "Currently unavailable"}
+                      </span>
+                    </div>
+                  </div>
                 </motion.div>
               </AnimatePresence>
-            </div>
-
-            {/* Persistent bottom bar: price + availability, then prev/next.
-                Sits outside the slide viewport so the controls stay put and
-                never cover the scrolling card content. */}
-            <div className="shrink-0 border-t border-graphite/10 px-6 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4 sm:px-8">
-              <div className="flex items-center justify-between gap-4">
-                <span className="font-display text-2xl font-bold text-graphite">
-                  {formatPrice(product)}
-                </span>
-                <span className="flex items-center gap-1.5 text-xs font-medium text-graphite/55">
-                  <Icon
-                    name={product.availability === "available" ? "check" : "clock"}
-                    className="h-3.5 w-3.5"
-                    aria-hidden="true"
-                  />
-                  {availabilityLabel(product.availability)}
-                </span>
-              </div>
-
-              {hasNav && (
-                <div className="mt-3 flex items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={goPrev}
-                    aria-label="Previous product"
-                    className="inline-flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-full border border-graphite/20 bg-white text-sm font-semibold text-graphite transition-colors hover:border-maroon hover:text-maroon focus-visible:outline-2 focus-visible:outline-offset-[3px]"
-                  >
-                    <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden="true">
-                      <path d="M15 6l-6 6 6 6" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                    Previous
-                  </button>
-                  <button
-                    type="button"
-                    onClick={goNext}
-                    aria-label="Next product"
-                    className="inline-flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-full border border-graphite/20 bg-white text-sm font-semibold text-graphite transition-colors hover:border-maroon hover:text-maroon focus-visible:outline-2 focus-visible:outline-offset-[3px]"
-                  >
-                    Next
-                    <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden="true">
-                      <path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                  </button>
-                </div>
-              )}
             </div>
           </motion.div>
         </motion.div>

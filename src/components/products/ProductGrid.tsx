@@ -5,7 +5,7 @@ import { ProductCard } from "./ProductCard";
 import { ProductCardSkeleton } from "./ProductCardSkeleton";
 import { ProductListItem, ProductListItemSkeleton } from "./ProductListItem";
 import { staggerContainer, staggerItem } from "@/lib/landing-animations";
-import type { Product } from "@/lib/products-content";
+import type { MenuProduct } from "@/features/menu/menu-types";
 
 /**
  * Responsive product list:
@@ -25,7 +25,7 @@ function ProductCell({
   product,
   onView,
 }: {
-  product: Product;
+  product: MenuProduct;
   onView: (id: string) => void;
 }) {
   return (
@@ -59,7 +59,7 @@ export function ProductGrid({
   onView,
   skeletonCount = 0,
 }: {
-  products: Product[];
+  products: MenuProduct[];
   revealKey: string;
   onView: (id: string) => void;
   skeletonCount?: number;

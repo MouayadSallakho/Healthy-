@@ -1,24 +1,22 @@
 "use client";
 
-import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { motion, useReducedMotion } from "motion/react";
 import { Icon } from "@/components/landing/icons";
-import {
-  formatPrice,
-  availabilityLabel,
-  type Product,
-} from "@/lib/products-content";
+import { MenuImage } from "./MenuImage";
+import type { MenuProduct } from "@/features/menu/menu-types";
 
 /**
- * Premium product card. Image + name open the detail modal; "Add" is a UI-only
- * placeholder (no cart persistence yet) with an accessible confirmation state.
+ * Premium product card (desktop / tablet). Image + name open the detail modal;
+ * "Add" is a UI-only placeholder (no cart persistence yet) with an accessible
+ * confirmation state. Visuals are unchanged from the approved design — only the
+ * data source (live API view model) differs.
  */
 export function ProductCard({
   product,
   onView,
 }: {
-  product: Product;
+  product: MenuProduct;
   onView: (id: string) => void;
 }) {
   const reduce = useReducedMotion();
@@ -58,12 +56,10 @@ export function ProductCard({
           transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
           className="absolute inset-0"
         >
-          <Image
+          <MenuImage
             src={product.image}
             alt={`${product.name} — ${product.shortDescription}`}
-            fill
             sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, (max-width: 1536px) 33vw, 25vw"
-            className="object-cover"
           />
         </motion.div>
 
@@ -75,9 +71,11 @@ export function ProductCard({
           aria-label={`View details for ${product.name}`}
         />
 
-        <span className="pointer-events-none absolute left-3 top-3 z-20 rounded-full bg-maroon px-2.5 py-1 text-[0.7rem] font-semibold uppercase tracking-wide text-cream shadow">
-          {product.tag}
-        </span>
+        {product.badge && (
+          <span className="pointer-events-none absolute left-3 top-3 z-20 rounded-full bg-maroon px-2.5 py-1 text-[0.7rem] font-semibold uppercase tracking-wide text-cream shadow">
+            {product.badge}
+          </span>
+        )}
 
         <button
           type="button"
@@ -117,15 +115,15 @@ export function ProductCard({
 
         <div className="mt-4 flex items-end justify-between gap-2">
           <span className="font-display text-xl font-bold text-graphite">
-            {formatPrice(product)}
+            ${product.price.toFixed(2)}
           </span>
           <span className="flex items-center gap-1 text-xs font-medium text-graphite/55">
             <Icon
-              name={product.availability === "available" ? "check" : "clock"}
+              name={product.isAvailable ? "check" : "clock"}
               className="h-3.5 w-3.5"
               aria-hidden="true"
             />
-            {availabilityLabel(product.availability)}
+            {product.isAvailable ? "Available today" : "Currently unavailable"}
           </span>
         </div>
 

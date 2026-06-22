@@ -3,73 +3,44 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { Icon } from "@/components/landing/icons";
-import { BuildMuscleIcon } from "@/components/landing/BuildMuscleIcon";
 import { FilterChip, SearchField } from "./ProductFilters";
-import {
-  filterCategories,
-  categoryMeta,
-  goalOrder,
-  goalMeta,
-  macroFilters,
-  sortOptions,
-  type FilterCategoryId,
-  type GoalId,
-  type MacroFilterId,
-  type SortId,
-  type ProductFilters as Filters,
-} from "@/lib/products-content";
+import { macroFilters, sortOptions, type MacroFilterId, type SortId } from "@/lib/products-content";
+import type { MenuFilters, MenuLookup } from "@/features/menu/menu-types";
 
 type Props = {
-  filters: Filters;
+  filters: MenuFilters;
+  categories: MenuLookup[];
+  goals: MenuLookup[];
   activeCount: number;
   resultCount: number;
-  onCategory: (c: FilterCategoryId) => void;
-  onToggleGoal: (g: GoalId) => void;
+  query: string;
+  onCategory: (id: number | null) => void;
+  onGoal: (id: number | null) => void;
   onToggleMacro: (m: MacroFilterId) => void;
   onQuery: (q: string) => void;
   onSort: (s: SortId) => void;
   onClear: () => void;
 };
 
-function GoalChip({
-  goal,
-  active,
-  onClick,
-}: {
-  goal: GoalId;
-  active: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <FilterChip
-      label={goalMeta[goal].label}
-      active={active}
-      onClick={onClick}
-      iconNode={
-        goal === "build" ? (
-          <BuildMuscleIcon variant={active ? "white" : "maroon"} className="h-4 w-4" />
-        ) : (
-          <Icon name={goalMeta[goal].icon} className="h-4 w-4" aria-hidden="true" />
-        )
-      }
-    />
-  );
-}
-
 /**
  * Mobile / tablet filter controls (shown below lg):
  * - Full-width search.
  * - A clearly-scrollable category strip (fade edges, scroll-snap, hidden
- *   scrollbar) that centers the selected chip.
- * - A "Filters" button opening an accessible bottom-sheet drawer (Category,
+ *   scrollbar) that centers the selected chip. "All" first.
+ * - A "Filters" button opening an accessible bottom-sheet drawer (Sort, Category,
  *   Goal, Macros) with X / backdrop / Escape close and body-scroll lock.
+ *
+ * Categories/goals come from the live API; goal is single-select.
  */
 export function MobileFilterBar({
   filters,
+  categories,
+  goals,
   activeCount,
   resultCount,
+  query,
   onCategory,
-  onToggleGoal,
+  onGoal,
   onToggleMacro,
   onQuery,
   onSort,
@@ -82,17 +53,17 @@ export function MobileFilterBar({
   const restoreRef = useRef<HTMLElement | null>(null);
   const titleId = useId();
 
+  const selectedCat = filters.categoryId === null ? "all" : String(filters.categoryId);
+
   // Keep the selected category chip in view (centered).
   useEffect(() => {
-    const el = scrollerRef.current?.querySelector<HTMLElement>(
-      `[data-cat="${filters.category}"]`,
-    );
+    const el = scrollerRef.current?.querySelector<HTMLElement>(`[data-cat="${selectedCat}"]`);
     el?.scrollIntoView({
       inline: "center",
       block: "nearest",
       behavior: reduce ? "auto" : "smooth",
     });
-  }, [filters.category, reduce]);
+  }, [selectedCat, reduce]);
 
   // Drawer: Escape close, body-scroll lock, focus in/restore.
   useEffect(() => {
@@ -125,14 +96,15 @@ export function MobileFilterBar({
           aria-label="Filter by category"
           className="flex snap-x gap-2 overflow-x-auto scroll-px-4 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         >
-          {filterCategories.map((c) => (
-            <div key={c} data-cat={c} className="shrink-0 snap-center">
-              {/* Category chips are text-only filters (no leading icon) so they
-                  never read as an "add" action. */}
+          <div data-cat="all" className="shrink-0 snap-center">
+            <FilterChip label="All" active={filters.categoryId === null} onClick={() => onCategory(null)} />
+          </div>
+          {categories.map((c) => (
+            <div key={c.id} data-cat={c.id} className="shrink-0 snap-center">
               <FilterChip
-                label={categoryMeta[c].label}
-                active={filters.category === c}
-                onClick={() => onCategory(c)}
+                label={c.name}
+                active={filters.categoryId === c.id}
+                onClick={() => onCategory(c.id)}
               />
             </div>
           ))}
@@ -149,7 +121,7 @@ export function MobileFilterBar({
 
       {/* Search + Filters on one row, directly under the categories */}
       <div className="mt-3 flex items-center gap-2">
-        <SearchField value={filters.query} onChange={onQuery} className="min-w-0 flex-1" />
+        <SearchField value={query} onChange={onQuery} className="min-w-0 flex-1" />
         <button
           type="button"
           onClick={() => setOpen(true)}
@@ -229,26 +201,29 @@ export function MobileFilterBar({
                 </FilterSection>
 
                 <FilterSection title="Category">
-                  {filterCategories.map((c) => (
+                  <FilterChip label="All" active={filters.categoryId === null} onClick={() => onCategory(null)} />
+                  {categories.map((c) => (
                     <FilterChip
-                      key={c}
-                      label={categoryMeta[c].label}
-                      active={filters.category === c}
-                      onClick={() => onCategory(c)}
+                      key={c.id}
+                      label={c.name}
+                      active={filters.categoryId === c.id}
+                      onClick={() => onCategory(c.id)}
                     />
                   ))}
                 </FilterSection>
 
-                <FilterSection title="Goal">
-                  {goalOrder.map((g) => (
-                    <GoalChip
-                      key={g}
-                      goal={g}
-                      active={filters.goals.includes(g)}
-                      onClick={() => onToggleGoal(g)}
-                    />
-                  ))}
-                </FilterSection>
+                {goals.length > 0 && (
+                  <FilterSection title="Goal">
+                    {goals.map((g) => (
+                      <FilterChip
+                        key={g.id}
+                        label={g.name}
+                        active={filters.goalId === g.id}
+                        onClick={() => onGoal(g.id)}
+                      />
+                    ))}
+                  </FilterSection>
+                )}
 
                 <FilterSection title="Macros">
                   {macroFilters.map((m) => (

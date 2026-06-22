@@ -1,13 +1,12 @@
 "use client";
 
-import Image from "next/image";
-import { formatPrice, type Product } from "@/lib/products-content";
+import { MenuImage } from "./MenuImage";
+import type { MenuProduct } from "@/features/menu/menu-types";
 
 /**
  * Compact restaurant-menu row used on mobile (`< sm`). The whole row is a
- * single accessible button that opens the existing detail modal — so it works
- * with Enter/Space and exposes the product name as its label. Macros stay in
- * the modal; the row shows only a single protein highlight to stay short.
+ * single accessible button that opens the detail modal. Visuals unchanged from
+ * the approved design — only the data source (live API view model) differs.
  *
  * Only `<span>`s inside the button (no block elements) to keep valid HTML.
  */
@@ -15,7 +14,7 @@ export function ProductListItem({
   product,
   onView,
 }: {
-  product: Product;
+  product: MenuProduct;
   onView: (id: string) => void;
 }) {
   return (
@@ -26,16 +25,16 @@ export function ProductListItem({
       className="group flex w-full items-stretch gap-3 rounded-2xl border border-graphite/10 bg-white p-2.5 text-left shadow-sm transition-colors duration-200 hover:border-maroon/40"
     >
       <span className="relative block h-[104px] w-[104px] shrink-0 overflow-hidden rounded-xl bg-graphite">
-        <Image
+        <MenuImage
           src={product.image}
           alt={`${product.name} — ${product.shortDescription}`}
-          fill
           sizes="112px"
-          className="object-cover"
         />
-        <span className="absolute left-1.5 top-1.5 rounded-full bg-maroon px-2 py-0.5 text-[0.6rem] font-semibold uppercase tracking-wide text-cream shadow">
-          {product.tag}
-        </span>
+        {product.badge && (
+          <span className="absolute left-1.5 top-1.5 rounded-full bg-maroon px-2 py-0.5 text-[0.6rem] font-semibold uppercase tracking-wide text-cream shadow">
+            {product.badge}
+          </span>
+        )}
       </span>
 
       <span className="flex min-w-0 flex-1 flex-col">
@@ -65,7 +64,7 @@ export function ProductListItem({
 
         <span className="mt-auto flex items-center justify-between gap-2 pt-2">
           <span className="font-display text-base font-bold text-graphite">
-            {formatPrice(product)}
+            ${product.price.toFixed(2)}
           </span>
           <span className="shrink-0 text-[0.7rem] font-semibold text-maroon">
             {product.macros.protein}g protein

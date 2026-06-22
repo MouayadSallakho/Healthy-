@@ -1,133 +1,72 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useReducedMotion } from "motion/react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ProductFilters } from "./ProductFilters";
 import { MobileFilterBar } from "./MobileFilterBar";
-import { ActiveFilterChips } from "./ActiveFilterChips";
-import { ProductSortBar } from "./ProductSortBar";
 import { ProductGrid } from "./ProductGrid";
 import { ProductEmptyState } from "./ProductEmptyState";
+import { ProductErrorState } from "./ProductErrorState";
 import { ProductDetailModal } from "./ProductDetailModal";
-import {
-  products,
-  filterAndSortProducts,
-  defaultFilters,
-  INITIAL_VISIBLE_PRODUCTS,
-  PRODUCTS_BATCH_SIZE,
-  type ProductFilters as Filters,
-  type FilterCategoryId,
-  type GoalId,
-  type MacroFilterId,
-  type SortId,
-} from "@/lib/products-content";
+import { useMenuProducts } from "@/features/menu/use-menu-products";
+import { PRODUCTS_PER_PAGE } from "@/features/menu/menu-query";
+import type { MenuLookup, MenuProduct } from "@/features/menu/menu-types";
+import type { PaginationMeta } from "@/lib/api";
 
-// Short, natural delay so the skeleton batch is perceptible (data is local, so
-// there's no real network wait). Skipped under reduced motion.
-const LOAD_MORE_DELAY_MS = 280;
+const SEARCH_DEBOUNCE_MS = 350;
+const LOADING_SKELETONS = 8;
+
+type Props = {
+  initialProducts: MenuProduct[];
+  initialPagination: PaginationMeta | null;
+  categories: MenuLookup[];
+  goals: MenuLookup[];
+  initialError: boolean;
+};
 
 /**
- * Client orchestrator for the menu: owns filter/search/sort state, progressive
- * rendering (visible count), and the selected product, then composes the
- * sidebar, mobile bar, toolbar, grid/empty state, and modal. Only the
- * first `INITIAL_VISIBLE_PRODUCTS` matches render; more load on scroll (via an
- * IntersectionObserver sentinel) or with the manual button.
+ * Client orchestrator for the live menu. Owns the selected product + the search
+ * input (debounced into the data hook), and composes the sidebar, mobile bar,
+ * grid/empty/error states, load-more, and the detail modal. All product data
+ * comes from the backend via {@link useMenuProducts}; categories/goals are
+ * server-provided. The first page is server-rendered (no fetch on mount).
  */
-export function ProductMenuShell() {
-  const reduce = useReducedMotion();
-  const [filters, setFilters] = useState<Filters>(defaultFilters);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE_PRODUCTS);
-  const [loadingMore, setLoadingMore] = useState(false);
+export function ProductMenuShell({
+  initialProducts,
+  initialPagination,
+  categories,
+  goals,
+  initialError,
+}: Props) {
+  const {
+    filters,
+    products,
+    isLoading,
+    isLoadingMore,
+    error,
+    loadMoreError,
+    activeCount,
+    total,
+    hasMore,
+    remaining,
+    setCategory,
+    setGoal,
+    toggleMacro,
+    setSort,
+    setSearch,
+    clearAll,
+    loadMore,
+    retry,
+  } = useMenuProducts({ initialProducts, initialPagination, initialError });
 
-  const loadingRef = useRef(false);
-  const loadTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [searchInput, setSearchInput] = useState("");
   const sentinelRef = useRef<HTMLDivElement>(null);
 
-  const filtered = useMemo(() => filterAndSortProducts(products, filters), [filters]);
-  const visibleProducts = useMemo(
-    () => filtered.slice(0, visibleCount),
-    [filtered, visibleCount],
-  );
-  const selectedProduct = useMemo(
-    () => products.find((p) => p.id === selectedId) ?? null,
-    [selectedId],
-  );
-
-  const hasMore = visibleCount < filtered.length;
-  const remaining = filtered.length - visibleCount;
-  const skeletonCount = loadingMore ? Math.min(PRODUCTS_BATCH_SIZE, Math.max(remaining, 0)) : 0;
-
-  const activeCount =
-    (filters.category !== "all" ? 1 : 0) +
-    filters.goals.length +
-    filters.macros.length +
-    (filters.query.trim() ? 1 : 0);
-
-  // Reset progressive state — called on every filter/search/sort change so the
-  // user never sees stale hidden products and always restarts at the first 10.
-  const resetVisible = useCallback(() => {
-    if (loadTimer.current) clearTimeout(loadTimer.current);
-    loadingRef.current = false;
-    setLoadingMore(false);
-    setVisibleCount(INITIAL_VISIBLE_PRODUCTS);
-  }, []);
-
-  const updateFilters = useCallback(
-    (updater: (f: Filters) => Filters) => {
-      setFilters(updater);
-      resetVisible();
-    },
-    [resetVisible],
-  );
-
-  const setCategory = useCallback(
-    (category: FilterCategoryId) => updateFilters((f) => ({ ...f, category })),
-    [updateFilters],
-  );
-  const setQuery = useCallback(
-    (query: string) => updateFilters((f) => ({ ...f, query })),
-    [updateFilters],
-  );
-  const setSort = useCallback(
-    (sort: SortId) => updateFilters((f) => ({ ...f, sort })),
-    [updateFilters],
-  );
-  const toggleGoal = useCallback(
-    (g: GoalId) =>
-      updateFilters((f) => ({
-        ...f,
-        goals: f.goals.includes(g) ? f.goals.filter((x) => x !== g) : [...f.goals, g],
-      })),
-    [updateFilters],
-  );
-  const toggleMacro = useCallback(
-    (m: MacroFilterId) =>
-      updateFilters((f) => ({
-        ...f,
-        macros: f.macros.includes(m) ? f.macros.filter((x) => x !== m) : [...f.macros, m],
-      })),
-    [updateFilters],
-  );
-  // Keep the chosen sort when clearing the rest.
-  const clearAll = useCallback(
-    () => updateFilters((f) => ({ ...defaultFilters, sort: f.sort })),
-    [updateFilters],
-  );
-
-  const loadMore = useCallback(() => {
-    if (loadingRef.current) return; // guard against duplicate triggers
-    loadingRef.current = true;
-    setLoadingMore(true);
-    loadTimer.current = setTimeout(
-      () => {
-        setVisibleCount((c) => c + PRODUCTS_BATCH_SIZE);
-        setLoadingMore(false);
-        loadingRef.current = false;
-      },
-      reduce ? 0 : LOAD_MORE_DELAY_MS,
-    );
-  }, [reduce]);
+  // Debounce the search input into the applied filter.
+  useEffect(() => {
+    const t = setTimeout(() => setSearch(searchInput), SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(t);
+  }, [searchInput, setSearch]);
 
   // Auto-load when the sentinel scrolls into view (only while there's more).
   useEffect(() => {
@@ -142,14 +81,19 @@ export function ProductMenuShell() {
     );
     observer.observe(el);
     return () => observer.disconnect();
-  }, [hasMore, loadMore, filters]);
+  }, [hasMore, loadMore]);
 
-  // Clean up a pending timer on unmount.
-  useEffect(() => () => {
-    if (loadTimer.current) clearTimeout(loadTimer.current);
-  }, []);
+  const handleClear = () => {
+    setSearchInput("");
+    clearAll();
+  };
 
-  const revealKey = `${filters.category}|${filters.goals.join(",")}|${filters.macros.join(",")}|${filters.query}|${filters.sort}`;
+  const selectedProduct = useMemo(
+    () => products.find((p) => p.id === selectedId) ?? null,
+    [products, selectedId],
+  );
+
+  const revealKey = `${filters.categoryId}|${filters.goalId}|${filters.macros.join(",")}|${filters.query}|${filters.sort}`;
 
   return (
     <section aria-label="Menu" className="mx-auto max-w-7xl px-4 py-4 sm:px-6 sm:py-10 lg:px-8 lg:py-14">
@@ -159,12 +103,15 @@ export function ProductMenuShell() {
           <div className="lg:sticky lg:top-24">
             <ProductFilters
               filters={filters}
+              categories={categories}
+              goals={goals}
               activeCount={activeCount}
+              query={searchInput}
               onCategory={setCategory}
-              onToggleGoal={toggleGoal}
+              onGoal={setGoal}
               onToggleMacro={toggleMacro}
-              onQuery={setQuery}
-              onClear={clearAll}
+              onQuery={setSearchInput}
+              onClear={handleClear}
             />
           </div>
         </aside>
@@ -178,42 +125,37 @@ export function ProductMenuShell() {
           <div className="sticky top-[calc(var(--top-chrome-height)*var(--chrome-offset,1))] z-30 -mx-4 border-b border-graphite/10 bg-cream px-4 py-3 transition-[top] duration-300 ease-out sm:-mx-6 sm:px-6 lg:hidden">
             <MobileFilterBar
               filters={filters}
+              categories={categories}
+              goals={goals}
               activeCount={activeCount}
-              resultCount={filtered.length}
+              resultCount={total}
+              query={searchInput}
               onCategory={setCategory}
-              onToggleGoal={toggleGoal}
+              onGoal={setGoal}
               onToggleMacro={toggleMacro}
-              onQuery={setQuery}
+              onQuery={setSearchInput}
               onSort={setSort}
-              onClear={clearAll}
+              onClear={handleClear}
             />
           </div>
 
-          {/* <div className="mt-6 lg:mt-0">
-            <ProductSortBar
-              count={filtered.length}
-              visible={visibleProducts.length}
-              sort={filters.sort}
-              onSort={setSort}
-            >
-              <ActiveFilterChips
-                filters={filters}
-                onCategory={setCategory}
-                onToggleGoal={toggleGoal}
-                onToggleMacro={toggleMacro}
-                onClear={clearAll}
-              />
-            </ProductSortBar>
-          </div> */}
-
           <div className="mt-3 sm:mt-6">
-            {filtered.length > 0 ? (
+            {error ? (
+              <ProductErrorState onRetry={retry} />
+            ) : isLoading ? (
+              <ProductGrid
+                products={[]}
+                revealKey="loading"
+                onView={setSelectedId}
+                skeletonCount={LOADING_SKELETONS}
+              />
+            ) : products.length > 0 ? (
               <>
                 <ProductGrid
-                  products={visibleProducts}
+                  products={products}
                   revealKey={revealKey}
                   onView={setSelectedId}
-                  skeletonCount={skeletonCount}
+                  skeletonCount={isLoadingMore ? Math.min(PRODUCTS_PER_PAGE, remaining) : 0}
                 />
 
                 {hasMore && (
@@ -224,19 +166,32 @@ export function ProductMenuShell() {
                       <button
                         type="button"
                         onClick={loadMore}
-                        aria-busy={loadingMore}
+                        aria-busy={isLoadingMore}
                         className="inline-flex min-h-12 items-center gap-2 rounded-full border border-graphite/20 bg-white px-7 text-sm font-semibold text-graphite shadow-sm transition-colors hover:border-maroon hover:text-maroon focus-visible:outline-2 focus-visible:outline-offset-[3px]"
                       >
-                        {loadingMore
+                        {isLoadingMore
                           ? "Loading…"
-                          : `Show ${Math.min(PRODUCTS_BATCH_SIZE, remaining)} more meals`}
+                          : `Show ${Math.min(PRODUCTS_PER_PAGE, remaining)} more meals`}
                       </button>
                     </div>
                   </>
                 )}
+
+                {loadMoreError && (
+                  <p className="mt-4 text-center text-sm text-graphite/60">
+                    Couldn&apos;t load more meals.{" "}
+                    <button
+                      type="button"
+                      onClick={loadMore}
+                      className="font-semibold text-maroon underline-offset-2 hover:underline"
+                    >
+                      Try again
+                    </button>
+                  </p>
+                )}
               </>
             ) : (
-              <ProductEmptyState onClear={clearAll} />
+              <ProductEmptyState onClear={handleClear} />
             )}
           </div>
         </div>
@@ -244,7 +199,7 @@ export function ProductMenuShell() {
 
       <ProductDetailModal
         product={selectedProduct}
-        list={filtered}
+        list={products}
         onClose={() => setSelectedId(null)}
         onNavigate={setSelectedId}
       />

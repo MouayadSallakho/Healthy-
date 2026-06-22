@@ -2,25 +2,14 @@
 
 import type { ReactNode } from "react";
 import { Icon } from "@/components/landing/icons";
-import { BuildMuscleIcon } from "@/components/landing/BuildMuscleIcon";
-import {
-  filterCategories,
-  categoryMeta,
-  goalOrder,
-  goalMeta,
-  macroFilters,
-  type FilterCategoryId,
-  type GoalId,
-  type MacroFilterId,
-  type ProductFilters as Filters,
-} from "@/lib/products-content";
+import { macroFilters, type MacroFilterId } from "@/lib/products-content";
+import type { MenuFilters, MenuLookup } from "@/features/menu/menu-types";
 
 /* ----------------------------- Primitives ------------------------------ */
 
 /**
  * Accessible filter pill. Selection is conveyed by fill + a check icon (not
- * color alone). `iconNode` lets callers inject a custom glyph (e.g. the
- * BuildMuscleIcon, which needs a white/maroon variant per state).
+ * color alone). `iconNode` lets callers inject a custom glyph (e.g. macro icons).
  */
 export function FilterChip({
   label,
@@ -80,6 +69,7 @@ export function SearchField({
         type="search"
         inputMode="search"
         value={value}
+        maxLength={100}
         onChange={(e) => onChange(e.target.value)}
         placeholder="Search meals, ingredients…"
         className="min-h-11 w-full rounded-full border border-graphite/15 bg-white pl-10 pr-4 text-sm text-graphite placeholder:text-graphite/40 focus:border-maroon focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-[3px]"
@@ -99,34 +89,18 @@ function FilterGroup({ title, children }: { title: string; children: ReactNode }
   );
 }
 
-/** Goal chip with the correct BuildMuscleIcon variant for build. */
-function GoalChip({
-  goal,
-  active,
-  onClick,
-}: {
-  goal: GoalId;
-  active: boolean;
-  onClick: () => void;
-}) {
-  const icon =
-    goal === "build" ? (
-      <BuildMuscleIcon variant={active ? "white" : "maroon"} className="h-4 w-4" />
-    ) : (
-      <Icon name={goalMeta[goal].icon} className="h-4 w-4" aria-hidden="true" />
-    );
-  return (
-    <FilterChip label={goalMeta[goal].label} active={active} onClick={onClick} iconNode={icon} />
-  );
-}
-
 /* ----------------------------- Sidebar --------------------------------- */
 
 type FiltersProps = {
-  filters: Filters;
+  filters: MenuFilters;
+  /** From GET /api/menu/categories (a virtual "All" chip is added here). */
+  categories: MenuLookup[];
+  /** From GET /api/menu/goals (single-select). */
+  goals: MenuLookup[];
   activeCount: number;
-  onCategory: (c: FilterCategoryId) => void;
-  onToggleGoal: (g: GoalId) => void;
+  query: string;
+  onCategory: (id: number | null) => void;
+  onGoal: (id: number | null) => void;
   onToggleMacro: (m: MacroFilterId) => void;
   onQuery: (q: string) => void;
   onClear: () => void;
@@ -134,12 +108,17 @@ type FiltersProps = {
 
 /**
  * Desktop filter sidebar (hidden below lg — the mobile UI is MobileFilterBar).
+ * Category is single-select with a virtual "All"; goal is single-select; macro
+ * filters are multi-select.
  */
 export function ProductFilters({
   filters,
+  categories,
+  goals,
   activeCount,
+  query,
   onCategory,
-  onToggleGoal,
+  onGoal,
   onToggleMacro,
   onQuery,
   onClear,
@@ -148,9 +127,7 @@ export function ProductFilters({
     <div className="flex flex-col rounded-2xl border border-graphite/10 bg-white/70 shadow-sm backdrop-blur lg:max-h-[calc(100svh-var(--navbar-height)-3rem)]">
       {/* Header stays visible while the body scrolls */}
       <div className="flex shrink-0 items-center justify-between border-b border-graphite/10 px-6 py-4">
-        <h2 className="font-display text-lg font-bold tracking-tight text-graphite">
-          Filters
-        </h2>
+        <h2 className="font-display text-lg font-bold tracking-tight text-graphite">Filters</h2>
         {activeCount > 0 && (
           <button
             type="button"
@@ -164,40 +141,43 @@ export function ProductFilters({
 
       {/* Single internal scroll area for all groups */}
       <div className="flex min-h-0 flex-col gap-7 overflow-y-auto overscroll-contain px-6 py-6">
-        <SearchField value={filters.query} onChange={onQuery} />
+        <SearchField value={query} onChange={onQuery} />
 
         <FilterGroup title="Category">
-        {filterCategories.map((c) => (
-          <FilterChip
-            key={c}
-            label={categoryMeta[c].label}
-            active={filters.category === c}
-            onClick={() => onCategory(c)}
-          />
-        ))}
-      </FilterGroup>
+          <FilterChip label="All" active={filters.categoryId === null} onClick={() => onCategory(null)} />
+          {categories.map((c) => (
+            <FilterChip
+              key={c.id}
+              label={c.name}
+              active={filters.categoryId === c.id}
+              onClick={() => onCategory(c.id)}
+            />
+          ))}
+        </FilterGroup>
 
-      <FilterGroup title="Goal">
-        {goalOrder.map((g) => (
-          <GoalChip
-            key={g}
-            goal={g}
-            active={filters.goals.includes(g)}
-            onClick={() => onToggleGoal(g)}
-          />
-        ))}
-      </FilterGroup>
+        {goals.length > 0 && (
+          <FilterGroup title="Goal">
+            {goals.map((g) => (
+              <FilterChip
+                key={g.id}
+                label={g.name}
+                active={filters.goalId === g.id}
+                onClick={() => onGoal(g.id)}
+              />
+            ))}
+          </FilterGroup>
+        )}
 
-      <FilterGroup title="Macros">
-        {macroFilters.map((m) => (
-          <FilterChip
-            key={m.id}
-            label={m.label}
-            active={filters.macros.includes(m.id)}
-            onClick={() => onToggleMacro(m.id)}
-            iconNode={<Icon name={m.icon} className="h-4 w-4" aria-hidden="true" />}
-          />
-        ))}
+        <FilterGroup title="Macros">
+          {macroFilters.map((m) => (
+            <FilterChip
+              key={m.id}
+              label={m.label}
+              active={filters.macros.includes(m.id)}
+              onClick={() => onToggleMacro(m.id)}
+              iconNode={<Icon name={m.icon} className="h-4 w-4" aria-hidden="true" />}
+            />
+          ))}
         </FilterGroup>
       </div>
     </div>
