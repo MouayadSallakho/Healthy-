@@ -2,18 +2,16 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useState } from "react";
 import { motion, useReducedMotion } from "motion/react";
-import { Icon } from "./icons";
 import { PRODUCTS_ROUTE, type Meal } from "@/lib/landing-content";
 
 /**
- * Premium meal card with hover lift, subtle image zoom, and an Add CTA that
- * routes to the products page. Reused by Featured Meals and the menu preview.
+ * Premium meal card with hover lift and a subtle image zoom. Browse-only: the
+ * card's CTA links to the menu (no cart/wishlist actions). Reused by Featured
+ * Meals and the menu preview.
  */
 export function MealCard({ meal }: { meal: Meal }) {
   const reduce = useReducedMotion();
-  const [fav, setFav] = useState(false);
 
   const macroItems = [
     { label: "Protein", value: `${meal.macros.protein}g` },
@@ -49,20 +47,6 @@ export function MealCard({ meal }: { meal: Meal }) {
         <span className="absolute left-3 top-3 rounded-full bg-maroon px-2.5 py-1 text-[0.7rem] font-semibold uppercase tracking-wide text-cream shadow">
           {meal.tag}
         </span>
-
-        <button
-          type="button"
-          onClick={() => setFav((v) => !v)}
-          aria-pressed={fav}
-          aria-label={fav ? `Remove ${meal.name} from favorites` : `Add ${meal.name} to favorites`}
-          className="absolute right-3 top-3 grid h-9 w-9 place-items-center rounded-full bg-white/85 text-maroon shadow ring-1 ring-black/5 backdrop-blur transition-colors hover:bg-white"
-        >
-          <Icon
-            name="heart"
-            className="h-5 w-5"
-            style={fav ? { fill: "currentColor" } : undefined}
-          />
-        </button>
       </div>
 
       <div className="flex flex-1 flex-col p-5">
@@ -92,11 +76,10 @@ export function MealCard({ meal }: { meal: Meal }) {
           </span>
           <Link
             href={PRODUCTS_ROUTE}
-            aria-label={`Add ${meal.name} — opens products`}
-            className="inline-flex min-h-11 items-center gap-1.5 rounded-full bg-graphite px-5 text-sm font-semibold text-cream transition-colors duration-300 group-hover:bg-maroon hover:bg-maroon"
+            aria-label={`View ${meal.name} on the menu`}
+            className="inline-flex min-h-11 items-center rounded-full bg-graphite px-5 text-sm font-semibold text-cream transition-colors duration-300 group-hover:bg-maroon hover:bg-maroon"
           >
-            <Icon name="check" className="h-4 w-4" />
-            Add
+            View
           </Link>
         </div>
       </div>

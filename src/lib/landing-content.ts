@@ -52,7 +52,7 @@ export const promoMessages: { icon: IconName; text: string }[] = [
 
 export const navLinks: { label: string; href: string }[] = [
   { label: "Home", href: "#home" },
-  { label: "Menu", href: "#menu" },
+  { label: "Menu", href: PRODUCTS_ROUTE },
   { label: "Meal Plans", href: "#plans" },
   { label: "How It Works", href: "#how-it-works" },
   { label: "About", href: "#inside-gym" },

@@ -32,7 +32,7 @@ export default async function Home() {
       />
       <HideOnScrollHeader>
         <TopPromoBar />
-        <Navbar />
+        <Navbar activeHref="#home" />
       </HideOnScrollHeader>
 
       <main className="flex-1">
